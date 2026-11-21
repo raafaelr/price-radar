@@ -1,5 +1,27 @@
 [
-  {"name": "Logitech G PRO X Superlight 2 (preto)", "url": "https://www.amazon.com.br/dp/B0CJ9RGJ18", "target": 599},
-  {"name": "Logitech G PRO X Superlight 2 (preto) - KaBuM", "url": "https://www.kabum.com.br/produto/495544", "target": 599},
-  {"name": "Logitech G PRO X Superlight (preto)", "url": "https://www.amazon.com.br/dp/B08TMCHQJM", "target": 550}
+ {
+  "name": "Logitech G PRO X Superlight 2 (preto)",
+  "url": "https://www.amazon.com.br/dp/B0CJ9RGJ18",
+  "target": 599
+ },
+ {
+  "name": "Logitech G PRO X Superlight 2 (preto) - KaBuM",
+  "url": "https://www.kabum.com.br/produto/495544",
+  "target": 599
+ },
+ {
+  "name": "Logitech G PRO X Superlight (preto)",
+  "url": "https://www.amazon.com.br/dp/B08TMCHQJM",
+  "target": 550
+ },
+ {
+  "name": "AMD Ryzen 7 7800X3D (Zoom)",
+  "url": "https://www.zoom.com.br/processador/processador-amd-ryzen-7-7800x3d",
+  "target": 1800
+ },
+ {
+  "name": "AMD Ryzen 7 9800X3D (Zoom)",
+  "url": "https://www.zoom.com.br/processador/processador-amd-ryzen-7-9800x3d",
+  "target": 2600
+ }
 ]

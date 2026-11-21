@@ -34,6 +34,24 @@
   input{width:100%;min-height:48px;padding:0 16px;border-radius:12px;border:1px solid var(--line);
         background:var(--bg);color:var(--text);font:inherit}
   .stores{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
+  .chips{display:flex;gap:8px;overflow-x:auto;padding:4px 0 8px;margin:8px 0}
+  .chip{min-height:44px;padding:0 16px;border-radius:999px;border:1px solid var(--line);background:var(--surface);color:var(--text);font:inherit;white-space:nowrap;cursor:pointer}
+  .chip[aria-pressed=true]{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
+  .bar{display:flex;gap:8px;align-items:center;justify-content:space-between;margin:8px 0}
+  .res{display:grid;grid-template-columns:88px 1fr;gap:12px;align-items:start}
+  .res img{width:88px;height:88px;object-fit:contain;background:#fff;border-radius:10px}
+  .res h3{font-size:15px;font-weight:600;margin:0 0 4px;line-height:1.3}
+  .res .price{font-size:22px}
+  .drawer{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;z-index:9}
+  .drawer.open{display:block}
+  .panel{position:absolute;inset:0 0 0 auto;width:min(92vw,380px);background:var(--bg);border-left:1px solid var(--line);overflow-y:auto;
+         padding:16px calc(16px + env(safe-area-inset-right)) calc(16px + env(safe-area-inset-bottom)) 16px;padding-top:calc(16px + env(safe-area-inset-top))}
+  fieldset{border:0;padding:0;margin:0 0 16px}
+  legend{font-weight:700;margin-bottom:8px;padding:0}
+  .opt{display:flex;align-items:center;gap:12px;min-height:44px}
+  .opt input{width:22px;height:22px;min-height:0;accent-color:var(--accent)}
+  .two{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  select{width:100%;min-height:44px;border-radius:12px;border:1px solid var(--line);background:var(--bg);color:var(--text);font:inherit;padding:0 12px}
   .skel{height:150px;animation:pulse 1.2s ease-in-out infinite}
   @keyframes pulse{50%{opacity:.5}}
   @media (prefers-reduced-motion:reduce){.skel{animation:none}}
@@ -49,31 +67,146 @@
 
 <main id="list" aria-live="polite"><div class="card skel"></div><div class="card skel"></div></main>
 
-<section class="card">
-  <h2>Buscar outro produto</h2>
-  <label for="q">O que você quer comparar?</label>
-  <input id="q" type="search" enterkeyhint="search" autocomplete="off" placeholder="Ex: headset HyperX Cloud III">
-  <p class="muted" id="hint">Digite o produto e escolha a loja.</p>
-  <div class="stores" id="stores"></div>
+<section class="card" id="cat">
+  <h2>Catálogo multi-loja</h2>
+  <form id="sf" role="search">
+    <label for="q">O que você quer comparar?</label>
+    <input id="q" type="search" enterkeyhint="search" autocomplete="off" placeholder="Ex: processador, headset, SSD 1TB">
+  </form>
+  <div class="chips" id="chips" aria-label="Categorias"></div>
+  <div class="bar"><span class="muted" id="count"></span>
+    <button class="btn" id="fbtn" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 5h18l-7 8v6l-4 2v-8z"/></svg>Filtros</button></div>
+  <div id="res" aria-live="polite"></div>
+  <details><summary class="muted" style="min-height:44px;display:flex;align-items:center">Configurar botão Rastrear</summary>
+    <label for="tok">Token do GitHub (só neste celular)</label>
+    <input id="tok" type="password" autocomplete="off" placeholder="github_pat_...">
+    <p class="muted">Crie em GitHub › Settings › Developer settings › Fine-grained tokens, só para o repo price-radar, com Contents: Read and write.</p>
+  </details>
 </section>
+<div class="drawer" id="drawer"><div class="panel" role="dialog" aria-modal="true" aria-label="Filtros">
+  <div class="bar"><h2>Filtros</h2><button class="btn" id="fclose">Fechar</button></div>
+  <fieldset><legend>Ordenar por</legend><select id="sort" aria-label="Ordenar por">
+    <option value="rel">Mais relevantes</option><option value="asc">Menor preço</option><option value="desc">Maior preço</option></select></fieldset>
+  <fieldset><legend>Faixa de preço</legend><div class="two">
+    <div><label for="pmin" class="muted">Mínimo (R$)</label><input id="pmin" inputmode="numeric"></div>
+    <div><label for="pmax" class="muted">Máximo (R$)</label><input id="pmax" inputmode="numeric"></div></div></fieldset>
+  <fieldset id="fbrand"><legend>Marca</legend></fieldset>
+  <fieldset id="fstore"><legend>Loja</legend></fieldset>
+  <button class="btn" id="fclear">Limpar filtros</button>
+</div></div>
 
 <script>
 const RAW = "https://raw.githubusercontent.com/raafaelr/price-radar/main/docs/";
 const brl = n => n.toLocaleString("pt-BR", {style: "currency", currency: "BRL"});
 const esc = s => s.replace(/[&<>"]/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}[c]));
-const stores = {
-  "Zoom": "https://www.zoom.com.br/search?q=",
-  "KaBuM": "https://www.kabum.com.br/busca/",
-  "Pichau": "https://www.pichau.com.br/search?q=",
-  "Amazon": "https://www.amazon.com.br/s?k=",
-  "Mercado Livre": "https://lista.mercadolivre.com.br/"
+const CATS = ["Processador","Placa de vídeo","Placa-mãe","Memória RAM","SSD","Mouse gamer","Teclado gamer","Headset gamer","Monitor"];
+const BRANDS = ["AMD","Intel","NVIDIA","Gigabyte","Asus","MSI","Corsair","Kingston","Samsung","Logitech","Razer","HyperX","Redragon","Attack Shark","SteelSeries","Pichau","XPG","Crucial","WD","Seagate","Lenovo","LG","AOC","Acer","Dell","TP-Link","Zowie","Cooler Master","Sony","JBL"];
+const q = document.getElementById("q"), $ = id => document.getElementById(id);
+let all = [], F = {brand: new Set(), store: new Set(), sort: "rel", min: null, max: null};
+
+// Pega o HTML pelo celular (Net.get, sem CORS); no navegador comum cai no fetch.
+const pend = {};
+window.__net = (id, st, body) => { const p = pend[id]; delete pend[id]; if (p) st >= 200 && st < 300 ? p.ok(body) : p.no(st); };
+function getHtml(url) {
+  return new Promise((ok, no) => {
+    if (window.Net) { const id = Math.random().toString(36).slice(2); pend[id] = {ok, no}; Net.get(id, url); }
+    else fetch(url).then(r => r.ok ? r.text() : no(r.status)).then(ok, no);
+  });
+}
+const num = t => { const m = /R\$\s*([\d.]+,\d{2})/.exec(t || ""); return m ? parseFloat(m[1].replace(/\./g, "").replace(",", ".")) : null; };
+const brandOf = n => { const l = n.toLowerCase(); return BRANDS.find(b => l.includes(b.toLowerCase())) || "Outras"; };
+
+// shortcut: depende do markup do Zoom (data-testid dos cards); se mudar, ajustar aqui.
+function parseZoom(html) {
+  const doc = new DOMParser().parseFromString(html, "text/html");
+  return [...doc.querySelectorAll('[data-testid="product-card"]')].map(c => {
+    const name = (c.querySelector('[data-testid="product-card::name"]') || {}).textContent;
+    const price = num((c.querySelector('[data-testid="product-card::price"]') || {}).textContent);
+    const a = c.matches("a[href]") ? c : c.querySelector("a[href]") || c.closest("a[href]");
+    if (!name || price == null || !a) return null;
+    const img = c.querySelector("img"), via = /Via\s*([^\n<]+?)\s*(?:$|R\$|\d)/.exec(c.textContent.replace(/\s+/g, " "));
+    const inst = (c.querySelector('[data-testid="product-card::installment"]') || {}).textContent;
+    return {name: name.trim(), price, url: new URL(a.getAttribute("href"), "https://www.zoom.com.br").href,
+      img: img ? (img.getAttribute("src") || img.getAttribute("data-src") || "") : "",
+      store: via ? via[1].trim() : "Zoom", inst: inst ? inst.trim() : "", brand: brandOf(name)};
+  }).filter(Boolean);
+}
+
+function applyF() {
+  let r = all.filter(x => (!F.brand.size || F.brand.has(x.brand)) && (!F.store.size || F.store.has(x.store))
+    && (F.min == null || x.price >= F.min) && (F.max == null || x.price <= F.max));
+  if (F.sort !== "rel") r = [...r].sort((a, b) => F.sort === "asc" ? a.price - b.price : b.price - a.price);
+  $("count").textContent = `${r.length} de ${all.length} resultados`;
+  $("res").innerHTML = r.length ? r.map(resCard).join("") : `<p class="muted">Nenhum resultado com esses filtros.</p>`;
+}
+function resCard(x) {
+  return `<article class="card res"><img src="${esc(x.img)}" alt="" loading="lazy"><div>
+    <h3>${esc(x.name)}</h3><div class="price">${brl(x.price)}</div>
+    <div class="muted">${esc(x.inst)} · ${esc(x.store)}</div>
+    <div class="row"><a class="btn" href="${esc(x.url)}">Ver</a>
+    <button class="btn primary" data-track="${esc(x.url)}">Rastrear</button></div></div></article>`;
+}
+function facets() {
+  const group = (key, id) => {
+    const c = {}; all.forEach(x => c[x[key]] = (c[x[key]] || 0) + 1);
+    $(id).innerHTML = $(id).firstElementChild.outerHTML + Object.keys(c).sort((a, b) => c[b] - c[a]).map(v =>
+      `<label class="opt"><input type="checkbox" data-k="${key}" value="${esc(v)}" ${F[key].has(v) ? "checked" : ""}>${esc(v)} <span class="muted">(${c[v]})</span></label>`).join("");
+  };
+  group("brand", "fbrand"); group("store", "fstore");
+}
+async function search(term) {
+  term = term.trim(); if (!term) return;
+  $("res").innerHTML = `<div class="card skel"></div><div class="card skel"></div>`; $("count").textContent = "Buscando…"; $("fbtn").hidden = true;
+  const u = p => `https://www.zoom.com.br/search?q=${encodeURIComponent(term)}&page=${p}`;
+  try {
+    const pages = await Promise.allSettled([getHtml(u(1)), getHtml(u(2))]);
+    if (pages[0].status !== "fulfilled") throw 0;
+    const seen = new Set();
+    all = pages.filter(p => p.status === "fulfilled").flatMap(p => parseZoom(p.value)).filter(x => !seen.has(x.url) && seen.add(x.url));
+    if (!all.length) { $("res").innerHTML = `<p class="muted">Nada encontrado para "${esc(term)}".</p>`; $("count").textContent = ""; return; }
+    F = {brand: new Set(), store: new Set(), sort: "rel", min: null, max: null};
+    ["sort", "pmin", "pmax"].forEach(i => $(i).value = i === "sort" ? "rel" : "");
+    facets(); applyF(); $("fbtn").hidden = false;
+  } catch (e) {
+    $("count").textContent = "";
+    $("res").innerHTML = `<div class="card"><p>Não consegui buscar agora (loja bloqueou ou sem conexão).</p><button class="btn primary" id="retry">Tentar de novo</button></div>`;
+    $("retry").onclick = () => search(term);
+  }
+}
+$("chips").innerHTML = CATS.map(c => `<button class="chip" aria-pressed="false">${c}</button>`).join("");
+$("chips").onclick = e => { const b = e.target.closest(".chip"); if (!b) return;
+  document.querySelectorAll(".chip").forEach(x => x.setAttribute("aria-pressed", x === b)); q.value = b.textContent; search(q.value); };
+$("sf").onsubmit = e => { e.preventDefault(); q.blur(); search(q.value); };
+const drawer = $("drawer");
+$("fbtn").onclick = () => { drawer.classList.add("open"); $("fclose").focus(); };
+$("fclose").onclick = () => { drawer.classList.remove("open"); $("fbtn").focus(); };
+drawer.onclick = e => { if (e.target === drawer) $("fclose").click(); };
+drawer.onchange = e => { const t = e.target;
+  if (t.dataset.k) t.checked ? F[t.dataset.k].add(t.value) : F[t.dataset.k].delete(t.value);
+  F.sort = $("sort").value; F.min = parseFloat($("pmin").value) || null; F.max = parseFloat($("pmax").value) || null; applyF(); };
+$("fclear").onclick = () => { F = {brand: new Set(), store: new Set(), sort: "rel", min: null, max: null};
+  ["pmin", "pmax"].forEach(i => $(i).value = ""); $("sort").value = "rel"; facets(); applyF(); };
+
+// Rastrear: acrescenta o item em docs/items.json pela API do GitHub (token fica so neste aparelho).
+const API = "https://api.github.com/repos/raafaelr/price-radar/contents/docs/items.json";
+$("tok").value = localStorage.getItem("pr_tok") || "";
+$("tok").onchange = () => localStorage.setItem("pr_tok", $("tok").value.trim());
+$("res").onclick = async e => {
+  const b = e.target.closest("[data-track]"); if (!b) return;
+  const tok = localStorage.getItem("pr_tok");
+  if (!tok) { document.querySelector("#cat details").open = true; $("tok").focus(); return; }
+  const x = all.find(i => i.url === b.dataset.track), H = {Authorization: "Bearer " + tok, Accept: "application/vnd.github+json"};
+  b.disabled = true; b.textContent = "Salvando…";
+  try {
+    const cur = await fetch(API, {headers: H}).then(r => { if (!r.ok) throw r.status; return r.json(); });
+    const items = JSON.parse(decodeURIComponent(escape(atob(cur.content.replace(/\n/g, "")))));
+    if (!items.some(i => i.url === x.url)) items.push({name: x.name, url: x.url, target: Math.floor(x.price * 0.95)});
+    const body = {message: "Rastrear: " + x.name, sha: cur.sha, content: btoa(unescape(encodeURIComponent(JSON.stringify(items, null, 1) + "\n")))};
+    const put = await fetch(API, {method: "PUT", headers: H, body: JSON.stringify(body)});
+    if (!put.ok) throw put.status;
+    b.textContent = "✓ Rastreando (meta -5%)"; load();
+  } catch (err) { b.disabled = false; b.textContent = "Erro " + err + " · tentar de novo"; }
 };
-const q = document.getElementById("q");
-document.getElementById("stores").innerHTML = Object.keys(stores)
-  .map(s => `<button class="btn" disabled data-s="${s}">${s}</button>`).join("");
-const btns = [...document.querySelectorAll("[data-s]")];
-q.addEventListener("input", () => btns.forEach(b => b.disabled = !q.value.trim()));
-btns.forEach(b => b.onclick = () => location.href = stores[b.dataset.s] + encodeURIComponent(q.value.trim()));
 
 function spark(h) {
   if (h.length < 2) return "";
