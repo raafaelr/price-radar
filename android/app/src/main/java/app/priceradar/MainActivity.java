@@ -9,8 +9,8 @@ import android.webkit.WebView;
 import android.webkit.WebViewClient;
 
 public class MainActivity extends Activity {
-    // Pagina publicada pelo GitHub Pages do repo
-    private static final String HOME = "https://raafaelr.github.io/price-radar/";
+    // Pagina embutida no APK; ela le os precos direto do repo (raw.githubusercontent.com)
+    private static final String HOME = "file:///android_asset/index.html";
     private WebView web;
 
     @Override

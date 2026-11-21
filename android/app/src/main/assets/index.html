@@ -19,7 +19,7 @@
 </head>
 <body>
 <h1>Price Radar</h1>
-<a class="add" target="_blank" href="https://github.com/raafaelr/price-radar/edit/main/docs/items.json">+ Adicionar item</a>
+<a class="add" href="https://github.com/raafaelr/price-radar/edit/main/docs/items.json">+ Adicionar item</a>
 <div id="list">Carregando...</div>
 
 <h1 style="margin-top:24px">Buscar outro produto</h1>
@@ -39,24 +39,25 @@ document.getElementById("stores").innerHTML = Object.keys(stores)
   .map(s => `<button onclick="go('${s}')">${s}</button>`).join("");
 function go(s) {
   const q = document.getElementById("q").value.trim();
-  if (q) window.open(stores[s] + encodeURIComponent(q), "_blank");
+  if (q) location.href = stores[s] + encodeURIComponent(q); // a casca abre lojas no navegador
 }
 
+const RAW = "https://raw.githubusercontent.com/raafaelr/price-radar/main/docs/";
 Promise.all([
-  fetch("items.json?" + Date.now()).then(r => r.json()),
-  fetch("prices.json?" + Date.now()).then(r => r.ok ? r.json() : {})
+  fetch(RAW + "items.json").then(r => r.json()),
+  fetch(RAW + "prices.json").then(r => r.ok ? r.json() : {})
 ]).then(([items, prices]) => {
   document.getElementById("list").innerHTML = items.map(it => {
     const h = prices[it.url] || [];
-    if (!h.length) return `<div class="item"><a target="_blank" href="${it.url}">${it.name}</a><div class="muted">ainda sem leitura</div></div>`;
+    if (!h.length) return `<div class="item"><a href="${it.url}">${it.name}</a><div class="muted">ainda sem leitura</div></div>`;
     const now = h[h.length - 1][1], min = Math.min(...h.map(p => p[1])), prev = h.length > 1 ? h[h.length - 2][1] : now;
     const cls = now < prev ? "down" : now > prev ? "up" : "";
     const when = new Date(h[h.length - 1][0] * 1000).toLocaleString("pt-BR");
-    return `<div class="item"><a target="_blank" href="${it.url}">${it.name}</a>
+    return `<div class="item"><a href="${it.url}">${it.name}</a>
       <div class="now ${cls}">${brl(now)}</div>
       <div class="muted">menor visto: ${brl(min)}${it.target ? " · meta: " + brl(it.target) : ""} · ${when}</div></div>`;
   }).join("");
-});
+}).catch(e => document.getElementById("list").textContent = "Erro ao carregar: " + e);
 </script>
 </body>
 </html>
