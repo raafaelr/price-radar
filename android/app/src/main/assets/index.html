@@ -2,32 +2,65 @@
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="color-scheme" content="dark">
 <title>Price Radar</title>
 <style>
-  body{font:16px system-ui,sans-serif;margin:0;padding:16px;background:#111;color:#eee}
-  h1{font-size:20px;margin:0 0 12px}
-  .item{background:#1c1c1c;border-radius:10px;padding:12px;margin-bottom:10px}
-  .item a{color:#8ab4ff;text-decoration:none}
-  .now{font-size:22px;font-weight:700}
-  .down{color:#4ade80}.up{color:#f87171}.muted{color:#999;font-size:13px}
-  input,button{font:inherit;padding:10px;border-radius:8px;border:0}
-  input{width:100%;box-sizing:border-box;margin-bottom:8px}
-  button{background:#2b2b2b;color:#eee;margin:0 6px 6px 0}
-  .add{display:inline-block;background:#2563eb;color:#fff;padding:10px 14px;border-radius:8px;margin-bottom:16px}
+  :root{--bg:#0f1115;--surface:#181b22;--line:#2a2f3a;--text:#eceff4;--muted:#a3a9b6;
+        --accent:#2563eb;--good:#4ade80;--bad:#f87171;--r:14px}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);font:16px/1.5 system-ui,sans-serif;
+       padding:16px calc(16px + env(safe-area-inset-right)) calc(24px + env(safe-area-inset-bottom)) calc(16px + env(safe-area-inset-left));
+       padding-top:calc(16px + env(safe-area-inset-top))}
+  header{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:16px}
+  h1{font-size:22px;line-height:1.2;margin:0}
+  h2{font-size:16px;margin:0 0 8px;font-weight:600}
+  svg{width:20px;height:20px;flex:none;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:0 16px;
+       border:1px solid var(--line);border-radius:12px;background:var(--surface);color:var(--text);
+       font:inherit;font-weight:600;text-decoration:none;cursor:pointer}
+  .btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+  .btn:disabled{opacity:.5;cursor:not-allowed}
+  .btn:focus-visible,input:focus-visible{outline:3px solid #93c5fd;outline-offset:2px}
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px;margin-bottom:16px}
+  .price{font-size:28px;font-weight:700;font-variant-numeric:tabular-nums;line-height:1.2}
+  .row{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:8px 0}
+  .tag{font-size:14px;font-weight:600;padding:2px 10px;border-radius:999px;border:1px solid currentColor}
+  .good{color:var(--good)}.bad{color:var(--bad)}
+  .muted{color:var(--muted);font-size:14px}
+  .spark{width:100%;height:36px;margin:8px 0;color:var(--muted)}
+  .actions{margin-top:8px}
+  label{display:block;font-weight:600;margin-bottom:8px}
+  input{width:100%;min-height:48px;padding:0 16px;border-radius:12px;border:1px solid var(--line);
+        background:var(--bg);color:var(--text);font:inherit}
+  .stores{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
+  .skel{height:150px;animation:pulse 1.2s ease-in-out infinite}
+  @keyframes pulse{50%{opacity:.5}}
+  @media (prefers-reduced-motion:reduce){.skel{animation:none}}
 </style>
 </head>
 <body>
-<h1>Price Radar</h1>
-<a class="add" href="https://github.com/raafaelr/price-radar/edit/main/docs/items.json">+ Adicionar item</a>
-<div id="list">Carregando...</div>
+<header>
+  <h1>Price Radar</h1>
+  <a class="btn primary" href="https://github.com/raafaelr/price-radar/edit/main/docs/items.json">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Adicionar
+  </a>
+</header>
 
-<h1 style="margin-top:24px">Buscar outro produto</h1>
-<input id="q" placeholder="Ex: headset HyperX Cloud III">
-<div id="stores"></div>
+<main id="list" aria-live="polite"><div class="card skel"></div><div class="card skel"></div></main>
+
+<section class="card">
+  <h2>Buscar outro produto</h2>
+  <label for="q">O que você quer comparar?</label>
+  <input id="q" type="search" enterkeyhint="search" autocomplete="off" placeholder="Ex: headset HyperX Cloud III">
+  <p class="muted" id="hint">Digite o produto e escolha a loja.</p>
+  <div class="stores" id="stores"></div>
+</section>
 
 <script>
+const RAW = "https://raw.githubusercontent.com/raafaelr/price-radar/main/docs/";
 const brl = n => n.toLocaleString("pt-BR", {style: "currency", currency: "BRL"});
+const esc = s => s.replace(/[&<>"]/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}[c]));
 const stores = {
   "Zoom": "https://www.zoom.com.br/search?q=",
   "KaBuM": "https://www.kabum.com.br/busca/",
@@ -35,29 +68,52 @@ const stores = {
   "Amazon": "https://www.amazon.com.br/s?k=",
   "Mercado Livre": "https://lista.mercadolivre.com.br/"
 };
+const q = document.getElementById("q");
 document.getElementById("stores").innerHTML = Object.keys(stores)
-  .map(s => `<button onclick="go('${s}')">${s}</button>`).join("");
-function go(s) {
-  const q = document.getElementById("q").value.trim();
-  if (q) location.href = stores[s] + encodeURIComponent(q); // a casca abre lojas no navegador
+  .map(s => `<button class="btn" disabled data-s="${s}">${s}</button>`).join("");
+const btns = [...document.querySelectorAll("[data-s]")];
+q.addEventListener("input", () => btns.forEach(b => b.disabled = !q.value.trim()));
+btns.forEach(b => b.onclick = () => location.href = stores[b.dataset.s] + encodeURIComponent(q.value.trim()));
+
+function spark(h) {
+  if (h.length < 2) return "";
+  const v = h.map(p => p[1]), lo = Math.min(...v), hi = Math.max(...v) || 1;
+  const pts = v.map((y, i) => `${(i / (v.length - 1)) * 100},${28 - ((y - lo) / ((hi - lo) || 1)) * 24}`).join(" ");
+  return `<svg class="spark" viewBox="0 0 100 30" preserveAspectRatio="none" role="img" aria-label="Histórico de preços"><polyline points="${pts}" vector-effect="non-scaling-stroke"/></svg>`;
 }
 
-const RAW = "https://raw.githubusercontent.com/raafaelr/price-radar/main/docs/";
-Promise.all([
-  fetch(RAW + "items.json").then(r => r.json()),
-  fetch(RAW + "prices.json").then(r => r.ok ? r.json() : {})
-]).then(([items, prices]) => {
-  document.getElementById("list").innerHTML = items.map(it => {
-    const h = prices[it.url] || [];
-    if (!h.length) return `<div class="item"><a href="${it.url}">${it.name}</a><div class="muted">ainda sem leitura</div></div>`;
-    const now = h[h.length - 1][1], min = Math.min(...h.map(p => p[1])), prev = h.length > 1 ? h[h.length - 2][1] : now;
-    const cls = now < prev ? "down" : now > prev ? "up" : "";
-    const when = new Date(h[h.length - 1][0] * 1000).toLocaleString("pt-BR");
-    return `<div class="item"><a href="${it.url}">${it.name}</a>
-      <div class="now ${cls}">${brl(now)}</div>
-      <div class="muted">menor visto: ${brl(min)}${it.target ? " · meta: " + brl(it.target) : ""} · ${when}</div></div>`;
-  }).join("");
-}).catch(e => document.getElementById("list").textContent = "Erro ao carregar: " + e);
+function card(it, h) {
+  const link = `<a class="btn actions" href="${esc(it.url)}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg>Ver na loja</a>`;
+  if (!h.length) return `<article class="card"><h2>${esc(it.name)}</h2><p class="muted">Ainda sem leitura de preço.</p>${link}</article>`;
+  const now = h[h.length - 1][1], prev = h.length > 1 ? h[h.length - 2][1] : now, min = Math.min(...h.map(p => p[1]));
+  const tags = [];
+  if (now < prev) tags.push(`<span class="tag good">▼ caiu ${brl(prev - now)}</span>`);
+  if (now > prev) tags.push(`<span class="tag bad">▲ subiu ${brl(now - prev)}</span>`);
+  if (h.length > 1 && now === min) tags.push(`<span class="tag good">Menor preço visto</span>`);
+  if (it.target) tags.push(now <= it.target
+    ? `<span class="tag good">✓ Na meta de ${brl(it.target)}</span>`
+    : `<span class="tag">Meta ${brl(it.target)} · faltam ${brl(now - it.target)}</span>`);
+  const when = new Date(h[h.length - 1][0] * 1000).toLocaleString("pt-BR", {dateStyle: "short", timeStyle: "short"});
+  return `<article class="card"><h2>${esc(it.name)}</h2>
+    <div class="price">${brl(now)}</div>
+    <div class="row">${tags.join("")}</div>${spark(h)}
+    <div class="muted">Menor visto: ${brl(min)} · atualizado ${when}</div>${link}</article>`;
+}
+
+function load() {
+  Promise.all([
+    fetch(RAW + "items.json").then(r => r.json()),
+    fetch(RAW + "prices.json").then(r => r.ok ? r.json() : {})
+  ]).then(([items, prices]) => {
+    document.getElementById("list").innerHTML = items.length
+      ? items.map(it => card(it, prices[it.url] || [])).join("")
+      : `<p class="muted">Nenhum item ainda. Toque em Adicionar.</p>`;
+  }).catch(() => {
+    document.getElementById("list").innerHTML =
+      `<div class="card"><p>Não consegui carregar os preços. Confira a conexão.</p><button class="btn primary" onclick="load()">Tentar de novo</button></div>`;
+  });
+}
+load();
 </script>
 </body>
 </html>
