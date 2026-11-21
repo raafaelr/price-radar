@@ -23,5 +23,10 @@
   "name": "AMD Ryzen 7 9800X3D (Zoom)",
   "url": "https://www.zoom.com.br/processador/processador-amd-ryzen-7-9800x3d",
   "target": 2600
+ },
+ {
+  "name": "AMD Ryzen 7 7800X3D - KaBuM",
+  "url": "https://www.kabum.com.br/produto/426262",
+  "target": 1700
  }
 ]
