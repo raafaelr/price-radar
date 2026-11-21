@@ -3,7 +3,7 @@ UA = {"User-Agent": "Mozilla/5.0 (Linux; Android 14; SM-S918B) AppleWebKit/537.3
 def get(u):
     return urllib.request.urlopen(urllib.request.Request(u, headers=UA), timeout=25).read().decode("utf-8", "replace")
 def walk(o, path="", depth=0, out=None):
-    if depth > 7: return
+    if depth > 6: return
     if isinstance(o, dict):
         for k, v in o.items():
             p = path + "." + k
@@ -17,7 +17,7 @@ for u in ["https://www.zoom.com.br/search?q=processador%20ryzen"]:
     b = get(u)
     m = re.search(r'<script id="__NEXT_DATA__"[^>]*>(.*?)</script>', b, re.S)
     d = json.loads(m.group(1))
-    print("TOP", list(d.keys()), list(d["props"]["pageProps"].keys()))
-    walk(d["props"]["pageProps"], "pp")
+    print("TOP", list(d["props"].keys()), d.get("page"), d.get("query"))
+    walk(d["props"], "props")
     for i, l in enumerate(re.findall(r'<script type="application/ld\+json">(.*?)</script>', b, re.S)[:3]):
         print("LD", i, l[:500])
